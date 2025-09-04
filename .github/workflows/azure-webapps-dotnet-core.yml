@@ -29,7 +29,7 @@ jobs:
 
       # Publish Artifacts
       - name: Publish Web Project
-        run: msbuild ASPDotNETSampleApplication.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="${{ github.workspace }}\\published"
+        run: msbuild ASPDotNETSampleApplication/ASPDotNETSampleApplication.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="${{ github.workspace }}\\published"
 
       # Deploy to Azure Web App
       - name: Deploy to Azure WebApp
