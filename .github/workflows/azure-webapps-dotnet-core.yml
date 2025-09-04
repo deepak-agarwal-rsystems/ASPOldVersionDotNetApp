@@ -6,39 +6,49 @@ on:
 jobs:
   build-and-deploy:
     runs-on: windows-latest
+    env:
+      SLN: ASPDotNETSampleApplication.sln
+      WEB_PROJ: ASPDotNETSampleApplication\ASPDotNETSampleApplication.csproj
+      PUBLISH_DIR: ${{ github.workspace }}\published
+      AZURE_WEBAPP_NAME: oldversionwindows
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Setup MSBuild for .NET Framework
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # Setup NuGet
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
-
-      # Restore NuGet packages
-      - name: Restore NuGet packages
-        run: nuget restore ASPDotNETSampleApplication.sln
-
-      # Build solution
-      - name: Build with MSBuild
-        run: msbuild ASPDotNETSampleApplication.sln /p:Configuration=Release
-
-      # Publish Web Project (to folder)
-      - name: Publish Web Project
-        run: msbuild ASPDotNETSampleApplication/ASPDotNETSampleApplication.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:DeleteExistingFiles=false /p:PublishUrl="${{ github.workspace }}/published"
-
-      # Zip published folder (so deploy step works reliably)
-      - name: Zip published folder
-        run: Compress-Archive -Path "${{ github.workspace }}/published/*" -DestinationPath "${{ github.workspace }}/app.zip"
-
-      # Deploy to Azure Web App
-      - name: Deploy to Azure WebApp
-        uses: azure/webapps-deploy@v2
         with:
-          app-name: "oldversionwindows"
+          nuget-version: '6.x'
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: nuget restore "$env:SLN"
+
+      - name: Ensure publish folder
+        shell: pwsh
+        run: |
+          if (Test-Path "$env:PUBLISH_DIR") { Remove-Item -Recurse -Force "$env:PUBLISH_DIR" }
+          New-Item -ItemType Directory -Path "$env:PUBLISH_DIR" | Out-Null
+
+      - name: Build and publish (FileSystem)
+        shell: pwsh
+        run: |
+          msbuild "$env:WEB_PROJ" `
+            /p:Configuration=Release `
+            /p:DeployOnBuild=true `
+            /p:WebPublishMethod=FileSystem `
+            /p:DeleteExistingFiles=false `
+            /p:PublishUrl="$env:PUBLISH_DIR"
+          # Sanity check: list a few published files
+          Get-ChildItem "$env:PUBLISH_DIR" -Recurse | Select-Object -First 10 | ForEach-Object { Write-Host $_.FullName }
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_old_Windows }}
-          package: ${{ github.workspace }}/app.zip
+          package: ${{ env:PUBLISH_DIR }}
