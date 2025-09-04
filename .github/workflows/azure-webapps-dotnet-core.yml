@@ -1,0 +1,40 @@
+name: Deploy .NET Framework 4.8 Web App to Azure
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Setup MSBuild for .NET Framework
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # Setup NuGet
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      # Restore NuGet packages
+      - name: Restore NuGet packages
+        run: nuget restore ASPDotNETSampleApplication.sln
+
+      # Build solution
+      - name: Build with MSBuild
+        run: msbuild ASPDotNETSampleApplication.sln /p:Configuration=Release
+
+      # Publish Artifacts
+      - name: Publish Web Project
+        run: msbuild ASPDotNETSampleApplication.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="${{ github.workspace }}\\published"
+
+      # Deploy to Azure Web App
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: "oldversionwindows"
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_old_Windows }}
+          package: ${{ github.workspace }}\published\ASPDotNETSampleApplication.zip
